@@ -57,6 +57,40 @@ tokenizer.add_text(sample_string)
 
 bytes_to_int = tokenizer.raw_bytes_to_integer()
 
-print(tokenizer.get_pairs())
-# top_pair = max(pair_dict, key=pair_dict.get)
-# print(top_pair)
+pairs = tokenizer.get_pairs()
+
+#print(sorted([(count, pair) for pair, count in pairs.items()], reverse=True))
+most_frequent_pair = max(pairs, key=pairs.get)
+
+print("Most frequently occurring pair: ", most_frequent_pair)
+
+def replace_common_pair(pair_list, most_frequent_pair, replace_id):
+    new_pair_list = []
+    i = 0
+    while i < len(pair_list):
+        if pair_list[i] == most_frequent_pair[0] and pair_list[i + 1] == most_frequent_pair[1]:
+            new_pair_list.append(replace_id)
+            i += 2 
+        else:
+            new_pair_list.append(pair_list[i])
+            i += 1
+
+    return new_pair_list
+
+# BPE training
+vocab_size = 276  # hyperparameter: the desired final vocabulary size
+num_merges = vocab_size - 256
+pairs = tokenizer.get_pairs()
+
+for i in range(num_merges):
+    # count up all the pairs
+    stats = tokenizer.get_pairs()
+    # find the pair with the highest count
+    pair = max(stats, key=stats.get)
+    # mint a new token: assign it the next available id
+    idx = 256 + i
+    # replace all occurrences of pair in tokens with idx
+    pairs = replace_common_pair(pairs, pair, idx)
+    # print progress
+    print(f"merge {i+1}/{num_merges}: {pair} -> {idx} ({stats[pair]} occurrences)")
+
