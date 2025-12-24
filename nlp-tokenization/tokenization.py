@@ -1,4 +1,4 @@
-
+import logging
 
 
 sample_string = """When Mr. Bilbo Baggins of Bag End announced that he would shortly be
@@ -25,6 +25,10 @@ class tokenizerModel:
 
     def __init__(self, tokenizer_method_name):
         self.model_name = tokenizer_method_name
+        self.text = ''
+        self.text_utf8 = ''
+        self.text_integers_list = []
+        self.vocab_size = 276 #hyperparameter for desired final vocabulary size
 
     def add_text(self, text):
         self.text = text
@@ -38,14 +42,52 @@ class tokenizerModel:
         text_integers_list = list(map(int, self.text_utf8))
 
         self.text_integers_list = text_integers_list
+    
+    def _replace_common_pair(self, pair_list, most_frequent_pair, replace_id):
+        new_pair_list = []
+        i = 0
+        while i < len(pair_list):
+            if pair_list[i] == most_frequent_pair[0] and pair_list[i + 1] == most_frequent_pair[1]:
+                new_pair_list.append(replace_id)
+                i += 2 
+            else:
+                new_pair_list.append(pair_list[i])
+                i += 1
 
-    def get_pairs(self):
+        return new_pair_list
+
+    def get_pairs(self, text_integers_list):
         pair_dict = {}
 
-        for pair in zip(self.text_integers_list, self.text_integers_list[1:]):
+        for pair in zip(text_integers_list, text_integers_list[1:]):
             pair_dict[pair] = pair_dict.get(pair, 0) + 1
             
         return pair_dict
+    
+    def byte_pair_encode(self):
+        # BPE training
+        num_merges = self.vocab_size - 256
+
+        text_integers_list = list(self.text_integers_list)
+        merged = {}
+        for i in range(num_merges):
+            # count up all the pairs
+            pairs = self.get_pairs(text_integers_list)
+            # find the pair with the highest count
+            pair = max(pairs, key=pairs.get)
+            # mint a new token: assign it the next available id
+            idx = 256 + i
+            #print(f"merging {pair} into a new token {idx}")
+            # replace all occurrences of pair in tokens with idx
+            text_integers_list = self._replace_common_pair(text_integers_list, pair, idx)
+
+            merged[pair] = idx
+
+        print("tokens length:", len(self.text_integers_list))
+        print("ids length:", len(text_integers_list))
+        print(f"compression ratio: {len(self.text_integers_list) / len(text_integers_list):.2f}X")
+
+
         
 
     
@@ -53,44 +95,22 @@ class tokenizerModel:
 # Initialize
 tokenizer = tokenizerModel("Test Model")
 
+print('Initilizing tokenizer -- model name: ', tokenizer.model_name)
+print('Initilizing tokenizer -- text: ', tokenizer.text)
+print('Initilizing tokenizer -- text utf8: ', tokenizer.text_utf8)
+print('Initilizing tokenizer -- text integer list: ', tokenizer.text_integers_list)
+
+# Add sample string
 tokenizer.add_text(sample_string)
 
+# Convert sample string to list of UTF8 byte integers
 bytes_to_int = tokenizer.raw_bytes_to_integer()
 
-pairs = tokenizer.get_pairs()
+# Run byte pair encoding algorithm
+tokenizer.byte_pair_encode()
 
-#print(sorted([(count, pair) for pair, count in pairs.items()], reverse=True))
-most_frequent_pair = max(pairs, key=pairs.get)
 
-print("Most frequently occurring pair: ", most_frequent_pair)
 
-def replace_common_pair(pair_list, most_frequent_pair, replace_id):
-    new_pair_list = []
-    i = 0
-    while i < len(pair_list):
-        if pair_list[i] == most_frequent_pair[0] and pair_list[i + 1] == most_frequent_pair[1]:
-            new_pair_list.append(replace_id)
-            i += 2 
-        else:
-            new_pair_list.append(pair_list[i])
-            i += 1
 
-    return new_pair_list
 
-# BPE training
-vocab_size = 276  # hyperparameter: the desired final vocabulary size
-num_merges = vocab_size - 256
-pairs = tokenizer.get_pairs()
-
-for i in range(num_merges):
-    # count up all the pairs
-    stats = tokenizer.get_pairs()
-    # find the pair with the highest count
-    pair = max(stats, key=stats.get)
-    # mint a new token: assign it the next available id
-    idx = 256 + i
-    # replace all occurrences of pair in tokens with idx
-    pairs = replace_common_pair(pairs, pair, idx)
-    # print progress
-    print(f"merge {i+1}/{num_merges}: {pair} -> {idx} ({stats[pair]} occurrences)")
 
