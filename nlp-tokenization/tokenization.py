@@ -28,7 +28,9 @@ class tokenizerModel:
         self.text = ''
         self.text_utf8 = ''
         self.text_integers_list = []
+        self.final_integers_list = []
         self.vocab_size = 276 #hyperparameter for desired final vocabulary size
+        self.merged_pairs = {}
 
     def add_text(self, text):
         self.text = text
@@ -69,7 +71,7 @@ class tokenizerModel:
         num_merges = self.vocab_size - 256
 
         text_integers_list = list(self.text_integers_list)
-        merged = {}
+        merged_pairs = {}
         for i in range(num_merges):
             # count up all the pairs
             pairs = self.get_pairs(text_integers_list)
@@ -81,11 +83,43 @@ class tokenizerModel:
             # replace all occurrences of pair in tokens with idx
             text_integers_list = self._replace_common_pair(text_integers_list, pair, idx)
 
-            merged[pair] = idx
+            merged_pairs[pair] = idx
+        
+        self.merged_pairs = merged_pairs
+        self.final_integers_list = text_integers_list
 
         print("tokens length:", len(self.text_integers_list))
         print("ids length:", len(text_integers_list))
         print(f"compression ratio: {len(self.text_integers_list) / len(text_integers_list):.2f}X")
+
+    def decode(self):
+        if len(self.merged_pairs) == 0:
+            raise "Run Byte pair encoding first before decoding"
+        
+        vocab = {idx: bytes([idx]) for idx in range(256)}
+
+        for (p0, p1), idx in self.merged_pairs.items():
+            vocab[idx] = vocab[p0] + vocab[p1]
+
+        # given ids (list of integers), return Python string
+        tokens = b"".join(vocab[idx] for idx in self.final_integers_list)
+        text = tokens.decode("utf-8", errors="replace")
+
+        return text
+    
+    def encode(self, text):
+        # given a string, return list of integers (the tokens)
+        tokens = list(text.encode("utf-8"))
+
+        while len(tokens) >= 2:
+            stats = self.get_pairs(tokens)
+            pair = min(stats, key=lambda p: self.merged_pairs.get(p, float("inf")))
+            if pair not in self.merged_pairs:
+                break # nothing else can be merged
+            idx = self.merged_pairs[pair]
+            tokens = self._replace_common_pair(tokens, pair, idx)
+
+        return tokens
 
 
         
@@ -108,6 +142,12 @@ bytes_to_int = tokenizer.raw_bytes_to_integer()
 
 # Run byte pair encoding algorithm
 tokenizer.byte_pair_encode()
+
+# Run decoding function
+tokenizer.decode()
+
+# Run encoding function
+print(tokenizer.encode("test string"))
 
 
 
