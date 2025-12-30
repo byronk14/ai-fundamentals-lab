@@ -1,5 +1,10 @@
 import logging
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 
 sample_string = """When Mr. Bilbo Baggins of Bag End announced that he would shortly be
 celebrating his eleventy-first birthday with a party of special
@@ -23,29 +28,29 @@ and trouble will come of it!"""
 class tokenizerModel:
     """ Class to handle testing of tokenizer """
 
-    def __init__(self, tokenizer_method_name):
-        self.model_name = tokenizer_method_name
-        self.text = ''
-        self.text_utf8 = ''
-        self.text_integers_list = []
-        self.final_integers_list = []
-        self.vocab_size = 276 #hyperparameter for desired final vocabulary size
-        self.merged_pairs = {}
+    def __init__(self, tokenizer_method_name: str):
+        self.model_name: str = tokenizer_method_name
+        self.text: str = ''
+        self.text_utf8: str = ''
+        self.text_integers_list: list = []
+        self.final_integers_list: list = []
+        self.vocab_size: int = 276 #hyperparameter for desired final vocabulary size
+        self.merged_pairs: dict = {}
 
     def add_text(self, text):
         self.text = text
 
-    def get_unicode_code(self):
+    def get_unicode_code(self) -> list:
         return [ord(str) for str in self.text]
     
-    def raw_bytes_to_integer(self):
+    def raw_bytes_to_integer(self) -> None:
         self.text_utf8 = self.text.encode('utf-8')
 
         text_integers_list = list(map(int, self.text_utf8))
 
         self.text_integers_list = text_integers_list
     
-    def _replace_common_pair(self, pair_list, most_frequent_pair, replace_id):
+    def _replace_common_pair(self, pair_list: list, most_frequent_pair: tuple, replace_id: int) -> list:
         new_pair_list = []
         i = 0
         while i < len(pair_list):
@@ -58,7 +63,7 @@ class tokenizerModel:
 
         return new_pair_list
 
-    def get_pairs(self, text_integers_list):
+    def get_pairs(self, text_integers_list: list) -> dict:
         pair_dict = {}
 
         for pair in zip(text_integers_list, text_integers_list[1:]):
@@ -88,11 +93,11 @@ class tokenizerModel:
         self.merged_pairs = merged_pairs
         self.final_integers_list = text_integers_list
 
-        print("tokens length:", len(self.text_integers_list))
-        print("ids length:", len(text_integers_list))
-        print(f"compression ratio: {len(self.text_integers_list) / len(text_integers_list):.2f}X")
+        logging.info(f"tokens length: {len(self.text_integers_list)}")
+        logging.info(f"ids length: {len(text_integers_list)}")
+        logging.info(f"compression ratio: {len(self.text_integers_list) / len(text_integers_list):.2f}X")
 
-    def decode(self):
+    def decode(self) -> str:
         if len(self.merged_pairs) == 0:
             raise "Run Byte pair encoding first before decoding"
         
@@ -129,10 +134,10 @@ class tokenizerModel:
 # Initialize
 tokenizer = tokenizerModel("Test Model")
 
-print('Initilizing tokenizer -- model name: ', tokenizer.model_name)
-print('Initilizing tokenizer -- text: ', tokenizer.text)
-print('Initilizing tokenizer -- text utf8: ', tokenizer.text_utf8)
-print('Initilizing tokenizer -- text integer list: ', tokenizer.text_integers_list)
+logging.info(f"Initilizing tokenizer -- model name: {tokenizer.model_name}")
+logging.info(f"Initilizing tokenizer -- text: {tokenizer.text}")
+logging.info(f"Initilizing tokenizer -- text utf8: {tokenizer.text_utf8}")
+logging.info(f"Initilizing tokenizer -- text integer list: {tokenizer.text_integers_list}")
 
 # Add sample string
 tokenizer.add_text(sample_string)
